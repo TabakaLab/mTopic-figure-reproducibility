@@ -157,8 +157,3 @@ Base R packages used by the scripts include:
 ```text
 stats, utils, graphics, grDevices, grid
 ```
-
-## References
-
-1. Zhang D, Deng Y, Kukanja P, Agirre E, et al. Spatial epigenome-transcriptome co-profiling of mammalian tissues. *Nature*. 2023;616(7955):113–122. PMID: 36922587.
-2. Mimitou EP, Lareau CA, Chen KY, Zorzetto-Fernandes AL, et al. Scalable, multimodal profiling of chromatin accessibility, gene expression and protein levels in single cells. *Nature Biotechnology*. 2021;39(10):1246–1258. PMID: 34083792.
