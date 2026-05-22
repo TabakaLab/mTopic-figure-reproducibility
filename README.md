@@ -19,7 +19,7 @@ The repository is designed for figure reproduction using processed datasets and 
 
 The processed datasets and intermediate analysis files required for figure reproduction are available from Zenodo:
 
-**Zenodo record:** <https://zenodo.org/records/20341450>
+**Zenodo record:** <https://zenodo.org/records/20341449>
 
 Download all files from the Zenodo record and place them directly in the `data/` directory at the root of this repository.
 
