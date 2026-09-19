@@ -5,7 +5,7 @@ library(this.path)
 
 setwd(this.dir())
 
-dir.create("../figures/Figure_E9", recursive = T)
+dir.create("../figures/Figure_E10", recursive = T)
 
 TFxGene <- readRDS(file="../data/PBMC_cyto_GRN.RDS")
 RTE <- readRDS("../data/RTE.RDS")
@@ -124,7 +124,7 @@ p3 <- ggplot(df, aes(x=Rank, y=Score)) +
   labs(title="RORA")
 
 
-pdf(file = paste0("../figures/Figure_E9/Figure_E9d.pdf"), width = 20, height=8)
+pdf(file = paste0("../figures/Figure_E10/Figure_E10d.pdf"), width = 20, height=8)
 grid.arrange(p2, p1, p3, ncol=3, nrow =1)
 dev.off()
 

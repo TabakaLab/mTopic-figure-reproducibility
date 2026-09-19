@@ -11,7 +11,7 @@ INPUT_PATHS = {
     "trained_model": "../data/HumanPBMC_trained.h5mu",
 }
 
-OUT = "../figures/Figure_E8"
+OUT = "../figures/Figure_E9"
 os.makedirs(OUT, exist_ok=True)
 
 mdata = mtopic.read.h5mu(INPUT_PATHS["trained_model"])
@@ -49,9 +49,9 @@ CELLTYPE_ORDER = [
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# Figure E8a
+# Figure E9a
 # ═══════════════════════════════════════════════════════════════════════════
-cmap_e8a = LSC.from_list(
+cmap_e9a = LSC.from_list(
     "blue_red",
     [
         (0.0, "#ffffff"),
@@ -80,7 +80,7 @@ top_features = pd.Index(
 df_plot = df.loc[top_features]
 
 fig, ax = plt.subplots(figsize=(10, 5))
-im = ax.imshow(df_plot.values, aspect="auto", cmap=cmap_e8a, interpolation="none")
+im = ax.imshow(df_plot.values, aspect="auto", cmap=cmap_e9a, interpolation="none")
 
 ax.set_xticks(range(df_plot.shape[1]))
 ax.set_xticklabels([TOPIC_CELLTYPE.get(t, t) for t in topic_order], rotation=90)
@@ -90,12 +90,12 @@ ax.set_ylabel("RNA")
 cbar = fig.colorbar(im, ax=ax, label="Probability")
 cbar.set_ticks([im.norm.vmin, im.norm.vmax])
 plt.tight_layout()
-plt.savefig(f"{OUT}/Figure_E8a.png", dpi=300, bbox_inches="tight")
+plt.savefig(f"{OUT}/Figure_E9a.png", dpi=300, bbox_inches="tight")
 plt.close()
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# Figure E8d
+# Figure E9d
 # ═══════════════════════════════════════════════════════════════════════════
 mdata_pkg = mdata
 prot_adata = mdata_pkg.mod["prot"]
@@ -153,7 +153,7 @@ for topic in topic_order:
         mean_expr.loc[topic] = expr[mask].mean(axis=0)
         pct_expr.loc[topic] = (counts[mask] > 0).mean(axis=0) * 100
 
-CMAP_E8D = LSC.from_list(
+CMAP_E9D = LSC.from_list(
     "bwg",
     ["#153068", "#274992", "#FFFFFF", "#CAB157", "#967926"],
 )
@@ -169,7 +169,7 @@ sc = ax.scatter(
     rows.ravel(),
     c=mean_expr.T.values.ravel(),
     s=((pct_expr.T.values / 100) * max_size + min_size).ravel(),
-    cmap=CMAP_E8D,
+    cmap=CMAP_E9D,
     vmin=-2,
     vmax=2,
     linewidths=0,
@@ -202,12 +202,12 @@ ax.legend(
     title="Percent expressed", frameon=False, loc="upper left", bbox_to_anchor=(1.15, 1)
 )
 ax.set_title("Protein expression per topic")
-plt.savefig(f"{OUT}/Figure_E8d.png", dpi=300, bbox_inches="tight")
+plt.savefig(f"{OUT}/Figure_E9d.png", dpi=300, bbox_inches="tight")
 plt.close()
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# Figure E8e
+# Figure E9e
 # ═══════════════════════════════════════════════════════════════════════════
 mdata_pkg = mdata
 
@@ -304,5 +304,5 @@ ax.legend(
     bbox_to_anchor=(1.15, 1),
 )
 ax.set_title("Protein signatures per topic")
-plt.savefig(f"{OUT}/Figure_E8e.png", dpi=300, bbox_inches="tight")
+plt.savefig(f"{OUT}/Figure_E9e.png", dpi=300, bbox_inches="tight")
 plt.close()

@@ -19,21 +19,46 @@ The repository is designed for figure reproduction using processed datasets and 
 
 The processed datasets and intermediate analysis files required for figure reproduction are available from Zenodo:
 
-**Zenodo record:** <https://zenodo.org/records/20341449>
+**Zenodo DOI:** [10.5281/zenodo.20341449](https://doi.org/10.5281/zenodo.20341449)
 
-Download all files from the Zenodo record and place them directly in the `data/` directory at the root of this repository.
+The deposit is distributed as a single ZIP archive, `mTopic-figure-reproducibility-data.zip`. Download it and extract its contents directly into the `data/` directory at the root of this repository.
 
-After downloading, the expected layout is:
+The archive contains one top-level folder, so extract and then move its contents up one level:
+
+```bash
+cd data
+unzip /path/to/mTopic-figure-reproducibility-data.zip
+mv mTopic-figure-reproducibility-data/* .
+rmdir mTopic-figure-reproducibility-data
+```
+
+Or extract without the leading folder in one step:
+
+```bash
+unzip -j /path/to/mTopic-figure-reproducibility-data.zip -d data/
+```
+
+The scripts expect the data files directly inside `data/`, not in a nested subdirectory.
+
+After extraction, the expected layout is:
 
 ```text
 .
 ├── data/
+│   ├── MANIFEST.md5
 │   ├── P22MouseBrainATAC_trained.h5mu
 │   ├── HumanTonsil_trained.h5mu
 │   ├── HumanPBMC_trained.h5mu
 │   └── ...
 ├── figures/
 └── scripts/
+```
+
+`MANIFEST.md5` lists the MD5 checksum of every file in the archive. To verify the extracted files:
+
+```bash
+cd data
+md5sum -c MANIFEST.md5
 ```
 
 ## Reproducing the figures

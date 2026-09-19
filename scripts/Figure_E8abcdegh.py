@@ -21,7 +21,7 @@ INPUT_PATHS = {
     "resolution_sweep": "../data/Leiden_modality_test.csv",
 }
 
-OUT = "../figures/Figure_E7"
+OUT = "../figures/Figure_E8"
 os.makedirs(OUT, exist_ok=True)
 
 path_trained = INPUT_PATHS["trained_model"]
@@ -92,7 +92,7 @@ def hex_to_rgb(h):
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# Figure E7a
+# Figure E8a
 # ═══════════════════════════════════════════════════════════════════════════
 with open(INPUT_PATHS["neighborhood_overlap"], "rb") as f:
     d = pickle.load(f)
@@ -180,12 +180,12 @@ ax.legend(
 ax.set_xticks(range(len(d_plot)))
 ax.set_xticklabels(list(d_plot.keys()), rotation=90)
 ax.set_ylabel("Normalized cumulative\nneighborhood overlap score")
-plt.savefig(f"{OUT}/Figure_E7a.png", dpi=300, bbox_inches="tight")
+plt.savefig(f"{OUT}/Figure_E8a.png", dpi=300, bbox_inches="tight")
 plt.close()
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# Figure E7b
+# Figure E8b
 # ═══════════════════════════════════════════════════════════════════════════
 with open(INPUT_PATHS["signature_dominance"], "rb") as f:
     raw_scores = pickle.load(f)
@@ -258,12 +258,12 @@ ax.set_xticks(range(len(methods)))
 ax.set_xticklabels(methods, rotation=90)
 ax.set_ylabel("Signature specificity score")
 ax.set_xlim(-1, len(methods))
-plt.savefig(f"{OUT}/Figure_E7b.png", dpi=300, bbox_inches="tight")
+plt.savefig(f"{OUT}/Figure_E8b.png", dpi=300, bbox_inches="tight")
 plt.close()
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# Figure E7c
+# Figure E8c
 # ═══════════════════════════════════════════════════════════════════════════
 mdata_1 = mtopic.read.h5mu(INPUT_PATHS["trained_model_rna"])
 mdata_2 = mtopic.read.h5mu(INPUT_PATHS["trained_model_rna_atac"])
@@ -281,7 +281,7 @@ mtopic.pl.dominant_topics(
     legend=True,
     s=50,
     legend_ncol=2,
-    save=f"{OUT}/Figure_E7c_1.png",
+    save=f"{OUT}/Figure_E8c_1.png",
 )
 mtopic.pl.dominant_topics(
     mdata_2,
@@ -295,7 +295,7 @@ mtopic.pl.dominant_topics(
     legend=True,
     s=50,
     legend_ncol=2,
-    save=f"{OUT}/Figure_E7c_2.png",
+    save=f"{OUT}/Figure_E8c_2.png",
 )
 mtopic.pl.dominant_topics(
     mdata_3,
@@ -308,12 +308,12 @@ mtopic.pl.dominant_topics(
     legend=True,
     s=50,
     legend_ncol=2,
-    save=f"{OUT}/Figure_E7c_3.png",
+    save=f"{OUT}/Figure_E8c_3.png",
 )
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# Figure E7d
+# Figure E8d
 # ═══════════════════════════════════════════════════════════════════════════
 K_NN = 15
 
@@ -345,15 +345,15 @@ PROTEINS_LABEL = [
 
 mdata_rna = mtopic.read.h5mu(INPUT_PATHS["trained_model_rna"])
 mdata_rna_atac = mtopic.read.h5mu(INPUT_PATHS["trained_model_rna_atac"])
-mdata_full_e7d = mtopic.read.h5mu(INPUT_PATHS["trained_model"])
+mdata_full_e8d = mtopic.read.h5mu(INPUT_PATHS["trained_model"])
 
 CONDITIONS = [
-    ("RNA + ATAC + Protein", mdata_full_e7d, "topics"),
+    ("RNA + ATAC + Protein", mdata_full_e8d, "topics"),
     ("RNA + ATAC", mdata_rna_atac, "topics"),
     ("RNA", mdata_rna, "topics"),
 ]
 
-prot = mdata_full_e7d.mod["prot"]
+prot = mdata_full_e8d.mod["prot"]
 counts = prot.layers["counts"]
 counts = counts.toarray() if issparse(counts) else np.asarray(counts)
 counts = counts.astype(float)
@@ -466,12 +466,12 @@ cbar = fig.colorbar(im, cax=cax)
 cbar.set_label("Relative PNC")
 cbar.outline.set_visible(False)
 
-fig.savefig(f"{OUT}/Figure_E7d.png", bbox_inches="tight", dpi=300)
+fig.savefig(f"{OUT}/Figure_E8d.png", bbox_inches="tight", dpi=300)
 plt.close()
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# Figure E7e
+# Figure E8e
 # ═══════════════════════════════════════════════════════════════════════════
 df_sweep = pd.read_csv(INPUT_PATHS["resolution_sweep"])
 pbmc_sweep = df_sweep[df_sweep["dataset"].str.startswith("PBMC")].copy()
@@ -533,12 +533,12 @@ ax.spines["right"].set_visible(False)
 ax.grid(True, axis="y", alpha=0.5)
 ax.legend(frameon=False, fontsize=8, loc="center left", bbox_to_anchor=(1.02, 0.5))
 fig.tight_layout()
-fig.savefig(f"{OUT}/Figure_E7e.png", bbox_inches="tight", dpi=300)
+fig.savefig(f"{OUT}/Figure_E8e.png", bbox_inches="tight", dpi=300)
 plt.close()
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# Figure E7g
+# Figure E8g
 # ═══════════════════════════════════════════════════════════════════════════
 CELLTYPES_KEEP_G = [
     "CD4 Treg",
@@ -582,12 +582,12 @@ ax.set_xlim((-6.5, -0.5))
 ax.set_ylim((-2, 4))
 ax.axis("off")
 fig.tight_layout()
-plt.savefig(f"{OUT}/Figure_E7g.png", dpi=300)
+plt.savefig(f"{OUT}/Figure_E8g.png", dpi=300)
 plt.close()
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# Figure E7h
+# Figure E8h
 # ═══════════════════════════════════════════════════════════════════════════
 CELLTYPES_KEEP_H = [
     "CD4 Tfh",
@@ -646,5 +646,5 @@ ax.set_yticklabels([TOPIC_CELLTYPE.get(t, t) for t in df_plot.index])
 ax.set_xlim(-0.5, n_cols - 0.5)
 ax.set_ylim(-0.5, n_rows - 0.5)
 ax.invert_yaxis()
-plt.savefig(f"{OUT}/Figure_E7h_3.png", dpi=300, bbox_inches="tight")
+plt.savefig(f"{OUT}/Figure_E8h_3.png", dpi=300, bbox_inches="tight")
 plt.close()

@@ -10,7 +10,7 @@ library(this.path)
 
 setwd(this.dir())
 
-dir.create("../figures/Figure_E9", recursive = T)
+dir.create("../figures/Figure_E10", recursive = T)
 
 graph_tbl <- readRDS(file="../data/PBMCs_GRN_RTE.RDS")
 node_colors <- c("darkred","green","blue")
@@ -34,7 +34,7 @@ gg <- ggraph(graph_tbl,'fr') +
   theme_graph() + 
   theme(legend.position="none")
 
-png(file = paste0("../figures/Figure_E9/Figure_E9e.png"), width = 300, height=200, units="mm", res =400)
+png(file = paste0("../figures/Figure_E10/Figure_E10e.png"), width = 300, height=200, units="mm", res =400)
 gg
 dev.off()
 

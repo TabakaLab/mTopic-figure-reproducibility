@@ -15,7 +15,7 @@ library(this.path)
 
 setwd(this.dir())
 
-dir.create("../figures/Figure_E9", recursive = T)
+dir.create("../figures/Figure_E10", recursive = T)
 
 RTE <- readRDS("../data/RTE.RDS")
 data <- readRDS("../data/Seurat_PBMCs.RDS")
@@ -40,7 +40,7 @@ p <- FeaturePlot(
   ) &
   theme(legend.position = "right")
 
-ggsave("../figures/Figure_E9/Figure_E9f.pdf", width = 5, height = 12, p)
+ggsave("../figures/Figure_E10/Figure_E10f.pdf", width = 5, height = 12, p)
 
 celltypes <- as.vector(unique(data@meta.data$cell_type))
 G1 <- names(unlist(RTE$TBX21))
@@ -154,7 +154,7 @@ p <- ggplot(df_long, aes(x = cell_type, y = score, fill = cell_type)) +
     plot.margin = margin(5, 20, 5, 40)
   )
 
-ggsave("../figures/Figure_E9/Figure_E9g.pdf", width = 12, height = 8, p)
+ggsave("../figures/Figure_E10/Figure_E10g.pdf", width = 12, height = 8, p)
 
 # > sessionInfo()
 # R version 4.5.2 (2025-10-31)

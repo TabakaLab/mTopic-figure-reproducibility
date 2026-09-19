@@ -10,16 +10,17 @@ from scipy.spatial import ConvexHull
 import os
 
 INPUT_PATHS = {
-    "spatial_benchmarks_csv": "../data/Spatial_benchmarks.csv",
-    "p22_atac_res_csv": "../data/P22MouseBrainATAC_metrics_res_comparison.csv",
-    "p22_h3k4me3_res_csv": "../data/P22MouseBrainH3K4me3_metrics_res_comparison.csv",
-    "p22_h3k27ac_res_csv": "../data/P22MouseBrainH3K27ac_metrics_res_comparison.csv",
-    "p22_h3k27me3_res_csv": "../data/P22MouseBrainH3K27me3_metrics_res_comparison.csv",
-    "atlas_celltypes": "../data/P22MouseBrain_AMBA_celltype_detection.csv",
-    "p22_atac_diag": "../data/P22MouseBrainATAC_signatures_diagonal_dominance_ratio.pkl",
-    "p22_h3k4me3_diag": "../data/P22MouseBrainH3K4me3_signatures_diagonal_dominance_ratio.pkl",
-    "p22_h3k27me3_diag": "../data/P22MouseBrainH3K27me3_signatures_diagonal_dominance_ratio.pkl",
-    "p22_h3k27ac_diag": "../data/P22MouseBrainH3K27ac_signatures_diagonal_dominance_ratio.pkl",
+    "spatial_benchmarks_csv":   "../data/Spatial_benchmarks.csv",
+    "p22_atac_res_csv":         "../data/P22MouseBrainATAC_metrics_res_comparison.csv",
+    "p22_h3k4me3_res_csv":      "../data/P22MouseBrainH3K4me3_metrics_res_comparison.csv",
+    "p22_h3k27ac_res_csv":      "../data/P22MouseBrainH3K27ac_metrics_res_comparison.csv",
+    "p22_h3k27me3_res_csv":     "../data/P22MouseBrainH3K27me3_metrics_res_comparison.csv",
+    "atlas_celltypes":          "../data/P22MouseBrain_AMBA_celltype_detection.csv",
+    "p22_atac_diag":            "../data/P22MouseBrainATAC_signatures_diagonal_dominance_ratio.pkl",
+    "p22_h3k4me3_diag":         "../data/P22MouseBrainH3K4me3_signatures_diagonal_dominance_ratio.pkl",
+    "p22_h3k27me3_diag":        "../data/P22MouseBrainH3K27me3_signatures_diagonal_dominance_ratio.pkl",
+    "p22_h3k27ac_diag":         "../data/P22MouseBrainH3K27ac_signatures_diagonal_dominance_ratio.pkl",
+    "ari":                      "../data/ari_vs_resolution_all_datasets.tsv"
 }
 
 OUT = "../figures/Figure_E4"
@@ -216,6 +217,52 @@ for i, x_metric in enumerate(["CHAOS", "PAS"], start=1):
 # Figure E4c
 # ═══════════════════════════════════════════════════════════════════════════
 
+DATASETS = ["ATAC", "H3K4me3", "H3K27me3", "H3K27ac"]
+METHOD_COLOR = {
+    "mtopic": "#b322ad",
+    "spatialglue": "#6acbd0",
+    "miso": "#be8046",
+    "coral": "#1f47a3",
+}
+
+res = pd.read_csv(INPUT_PATHS["ari"], sep="\t")
+order = [n for n in DATASETS if n in set(res["dataset"])]
+
+fig, axes = plt.subplots(2, 2, figsize=(11, 7.5), sharex=True)
+flat = axes.ravel()
+
+for ax, name in zip(flat, order):
+    d0 = res[res["dataset"] == name]
+    for k in METHOD_COLOR:
+        dk = d0[d0["method"] == k].sort_values("resolution")
+        ax.plot(dk["resolution"], dk["ari"], marker="o", ms=5,
+                color=METHOD_COLOR[k], label=k)
+    ymax = float(d0["ari"].max()) * 1.1
+    ax.set_ylim(0, ymax)
+    ax.set_yticks(np.arange(0, ymax + 1e-9, 0.1))
+    ax.set_title(name + "-RNA", fontsize=11)
+    ax.grid(alpha=0.25)
+
+for ax in flat[len(order):]:
+    ax.set_visible(False)
+
+for ax in axes[-1]:
+    ax.set_xlabel("Reference Leiden resolution")
+for ax in axes[:, 0]:
+    ax.set_ylabel("ARI")
+
+handles, labels = flat[0].get_legend_handles_labels()
+fig.legend(handles, labels, fontsize=9, frameon=False, ncol=4,
+           loc="lower center", bbox_to_anchor=(0.5, -0.01))
+fig.tight_layout(rect=[0, 0.04, 1, 0.97])
+fig.savefig(f"{OUT}/Figure_E4c.png", bbox_inches="tight", dpi=300)
+plt.close()
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Figure E4d
+# ═══════════════════════════════════════════════════════════════════════════
+
 df = pd.read_csv(INPUT_PATHS["atlas_celltypes"])
 
 DATASET_ORDER = [
@@ -323,12 +370,12 @@ ax.legend(
 
 fig.subplots_adjust(bottom=0.28, top=0.80)
 
-fig.savefig(f"{OUT}/Figure_E4c.png", bbox_inches="tight", dpi=300)
+fig.savefig(f"{OUT}/Figure_E4d.png", bbox_inches="tight", dpi=300)
 plt.close()
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# Figure E4d
+# Figure E4e
 # ═══════════════════════════════════════════════════════════════════════════
 
 dsets = ["p22_atac", "p22_h3k4me3", "p22_h3k27me3", "p22_h3k27ac"]
@@ -391,7 +438,7 @@ ax_line.set_xlim(xlim)
 for spine in ax_line.spines.values():
     spine.set_linewidth(1.5)
 plt.tight_layout()
-plt.savefig(f"{OUT}/Figure_E4d_1.png", dpi=300, bbox_inches="tight")
+plt.savefig(f"{OUT}/Figure_E4e_1.png", dpi=300, bbox_inches="tight")
 plt.close()
 
 fig, ax_bar = plt.subplots(figsize=(6, 5))
@@ -430,5 +477,5 @@ for spine in ax_bar.spines.values():
 plt.xticks(fontsize=9)
 plt.yticks(fontsize=10)
 plt.tight_layout()
-plt.savefig(f"{OUT}/Figure_E4d_2.png", dpi=300, bbox_inches="tight")
+plt.savefig(f"{OUT}/Figure_E4e_2.png", dpi=300, bbox_inches="tight")
 plt.close()

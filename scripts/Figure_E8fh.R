@@ -11,7 +11,7 @@ library(this.path)
 
 setwd(this.dir())
 
-dir.create("../figures/Figure_E7", recursive = T)
+dir.create("../figures/Figure_E8", recursive = T)
 
 
 data<-readRDS("../data/HumanPBMC_RNA_unfiltered.RDS")
@@ -21,7 +21,7 @@ data<-NormalizeData(data, normalization.method = "CLR", assay = "prot")
 data<-NormalizeData(data, assay = "rna")
 
 # ═══════════════════════════════════════════════════════════════════════════
-# Figure E6f
+# Figure E8f
 # ═══════════════════════════════════════════════════════════════════════════
 
 DefaultAssay(data)<-"prot"
@@ -37,10 +37,10 @@ plotList<-lapply(prot, function(x) {
 })
 
 ml <- marrangeGrob(plotList, layout_matrix = matrix(1:2, 1, 2, TRUE))
-ggsave("../figures/Figure_E7/Figure_E7f.png", ml, width = 10, height = 5, bg = "white")
+ggsave("../figures/Figure_E8/Figure_E8f.png", ml, width = 10, height = 5, bg = "white")
 
 # ═══════════════════════════════════════════════════════════════════════════
-# Figure E6h
+# Figure E8h
 # ═══════════════════════════════════════════════════════════════════════════
 
 cell_types<-levels(data$cell_type)[grep("CD4", levels(data$cell_type))]
@@ -70,7 +70,7 @@ plotList<-lapply(marker, function(x) {
 })
 
 ml <- marrangeGrob(plotList, layout_matrix = matrix(1:5, 1, 5, TRUE))
-ggsave("../figures/Figure_E7/Figure_E7h_1.png", ml, width = 15, height = 3, bg = "white")
+ggsave("../figures/Figure_E8/Figure_E8h_1.png", ml, width = 15, height = 3, bg = "white")
 
 
 DefaultAssay(data)<-"prot"
@@ -91,7 +91,7 @@ plotList<-lapply(prot, function(x) {
 })
 
 ml <- marrangeGrob(plotList, layout_matrix = matrix(1:5, 1, 5, TRUE))
-ggsave("../figures/Figure_E7/Figure_E7h_2.png", ml, width = 15, height = 3, bg = "white")
+ggsave("../figures/Figure_E8/Figure_E8h_2.png", ml, width = 15, height = 3, bg = "white")
 
 # > sessionInfo()
 # R version 4.5.2 (2025-10-31)

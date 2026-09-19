@@ -139,7 +139,7 @@ plot_runtime(
 )
 
 # ═══════════════════════════════════════════════════════════════════════════
-# Figure E1c
+# Figure E1d
 # ═══════════════════════════════════════════════════════════════════════════
 with open(INPUT_PATHS["tsll_optimal_params"]) as f:
     saved_params = json.load(f)
@@ -233,5 +233,5 @@ for i, (title, y_fit, y_data, plateau_x, plateau_x_std) in enumerate(panels, sta
     ax.set_ylabel("Normalized log-likelihood")
     ax.legend(fontsize=8, frameon=False)
     fig.tight_layout()
-    fig.savefig(f"{OUT}/Figure_E1c_{i}.png", bbox_inches="tight")
+    fig.savefig(f"{OUT}/Figure_E1d_{i}.png", bbox_inches="tight")
     plt.close()

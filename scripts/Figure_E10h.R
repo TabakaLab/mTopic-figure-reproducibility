@@ -4,7 +4,7 @@ library(this.path)
 
 setwd(this.dir())
 
-dir.create("../figures/Figure_E9", recursive = T)
+dir.create("../figures/Figure_E10", recursive = T)
 
 data <- read.csv("../data/PBMC_GO.csv", sep=";")
 data_clean <- data[, c("Gene.Set.Name", "FDR.q.value")]
@@ -34,7 +34,7 @@ cyto <- ggplot(data_clean, aes(x = reorder(Gene.Set.Name, log10_FDR),
         axis.title.y=element_text(size=size,colour='black'),
         legend.position="none")
 
-ggsave("../figures/Figure_E9/Figure_E9h.pdf", width = 9, height = 3, cyto)
+ggsave("../figures/Figure_E10/Figure_E10h.pdf", width = 9, height = 3, cyto)
 
 
 # > sessionInfo()
