@@ -427,6 +427,13 @@ im = ax.imshow(
 proteins_in_order = list(centered.columns)
 tick_positions = [i for i, p in enumerate(proteins_in_order) if p in PROTEINS_LABEL]
 tick_labels = [proteins_in_order[i] for i in tick_positions]
+print(
+    f"E8d: {n_cols} proteins plotted, {len(tick_positions)} labelled, "
+    f"{int(centered.isna().all(axis=0).sum())} without variance (blank columns)"
+)
+missing_labels = [p for p in PROTEINS_LABEL if p not in proteins_in_order]
+if missing_labels:
+    print(f"E8d: labels not found among plotted proteins: {missing_labels}")
 ax.set_xticks(tick_positions)
 ax.set_xticklabels(tick_labels, rotation=90, fontsize=7)
 ax.set_yticks(range(n_rows))
@@ -477,50 +484,50 @@ df_sweep = pd.read_csv(INPUT_PATHS["resolution_sweep"])
 pbmc_sweep = df_sweep[df_sweep["dataset"].str.startswith("PBMC")].copy()
 
 PAIRS = [
-    ("PBMC_rna-atac", "RNA", "ATAC", "#b1b1b1"),
-    ("PBMC_atac-prot", "ATAC", "Protein", "#dedede"),
-    ("PBMC_rna-prot", "RNA", "Protein", "#8b8b8b"),
+    ("PBMC_rna-atac", "RNA", "ATAC", "#b1b1b1", "o"),
+    ("PBMC_atac-prot", "ATAC", "Protein", "#dedede", "s"),
+    ("PBMC_rna-prot", "RNA", "Protein", "#8b8b8b", "^"),
 ]
 MODALITY_COLOR = {
     "ATAC": "#719C71",
     "RNA": "#D6483B",
     "Protein": "#DABF69",
 }
+MODALITY_MARKER = {
+    "RNA": "o",
+    "ATAC": "s",
+    "Protein": "^",
+}
+MARKER_SIZE_SCALE = {"o": 1.0, "s": 0.9, "^": 1.1}
 
 fig, ax = plt.subplots(figsize=(6, 3))
 seen_mm = set()
-for dataset, label_a, label_b, base_color in PAIRS:
+for dataset, label_a, label_b, base_color, pair_marker in PAIRS:
     sub = pbmc_sweep[pbmc_sweep["dataset"] == dataset].sort_values("res")
-    if label_a not in seen_mm:
+    for label, col in ((label_a, "nmi_mm_a"), (label_b, "nmi_mm_b")):
+        if label in seen_mm:
+            continue
+        marker = MODALITY_MARKER[label]
         ax.plot(
             sub["res"],
-            sub["nmi_mm_a"],
-            "-o",
-            color=MODALITY_COLOR[label_a],
-            label=f"MTM vs {label_a}",
+            sub[col],
+            "-",
+            marker=marker,
+            color=MODALITY_COLOR[label],
+            label=f"MTM vs {label}",
             lw=2,
-            ms=5,
+            ms=5 * MARKER_SIZE_SCALE[marker],
         )
-        seen_mm.add(label_a)
-    if label_b not in seen_mm:
-        ax.plot(
-            sub["res"],
-            sub["nmi_mm_b"],
-            "-o",
-            color=MODALITY_COLOR[label_b],
-            label=f"MTM vs {label_b}",
-            lw=2,
-            ms=5,
-        )
-        seen_mm.add(label_b)
+        seen_mm.add(label)
     ax.plot(
         sub["res"],
         sub["nmi_a_b"],
-        "-o",
+        "-",
+        marker=pair_marker,
         color=base_color,
         label=f"{label_a} vs {label_b}",
         lw=1.8,
-        ms=4,
+        ms=4 * MARKER_SIZE_SCALE[pair_marker],
     )
 
 ax.set_xlabel("Clustering resolution")
@@ -533,7 +540,7 @@ ax.spines["right"].set_visible(False)
 ax.grid(True, axis="y", alpha=0.5)
 ax.legend(frameon=False, fontsize=8, loc="center left", bbox_to_anchor=(1.02, 0.5))
 fig.tight_layout()
-fig.savefig(f"{OUT}/Figure_E8e.png", bbox_inches="tight", dpi=300)
+fig.savefig(f"{OUT}/Figure_E8e.pdf", bbox_inches="tight", dpi=300)
 plt.close()
 
 

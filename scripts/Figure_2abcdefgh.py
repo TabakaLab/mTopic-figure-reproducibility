@@ -2,9 +2,10 @@ from collections import defaultdict
 import re
 
 import matplotlib.colors as mcolors
+from matplotlib.collections import PatchCollection
 from matplotlib.colors import LinearSegmentedColormap
 import matplotlib.gridspec as gridspec
-import matplotlib.patches as mpatches
+from matplotlib.patches import ConnectionPatch, Rectangle, Wedge
 import matplotlib.pyplot as plt
 import mtopic
 import numpy as np
@@ -17,6 +18,9 @@ import os
 INPUT_PATHS = {
     "trained_model": "../data/HumanTonsil_trained.h5mu",
 }
+
+plt.rcParams["font.family"] = "Arial"
+plt.rcParams["pdf.fonttype"] = 42
 
 OUT = "../figures/Figure_2"
 os.makedirs(OUT, exist_ok=True)
@@ -32,36 +36,207 @@ TOPIC_COLOR = mdata.uns["TOPIC_COLOR"]
 TOPIC_CELLTYPE = mdata.uns["TOPIC_CELLTYPE"]
 CELLTYPE_COLOR = mdata.uns["CELLTYPE_COLOR"]
 
+FONT = 10
+TITLE_FONT = 11
+BG_KWARGS = dict(s=2, c="lightgrey", linewidths=0, rasterized=True)
+
+
+def pretty(name):
+    name = name.replace("Myeloid cells", "Myeloid")
+    return re.sub(r"-(\d+)$", r" \1", name)
+
+
+def spot_map(ax, coords, values, cmap, vmin, vmax, title, italic=False):
+    ax.scatter(coords[:, 0], coords[:, 1], **BG_KWARGS, zorder=1)
+    sc_map = ax.scatter(
+        coords[:, 0],
+        coords[:, 1],
+        c=values,
+        s=12,
+        marker="h",
+        cmap=cmap,
+        linewidths=0,
+        rasterized=True,
+        zorder=2,
+        vmin=vmin,
+        vmax=vmax,
+    )
+    ax.set_title(
+        title, fontsize=TITLE_FONT, pad=4, fontstyle="italic" if italic else "normal"
+    )
+    ax.axis("off")
+    ax.set_aspect("equal")
+    return sc_map
+
+
+def unit_colorbar(fig, mappable, axes, label, ticklabels=("0", "1"), **kwargs):
+    cbar = fig.colorbar(mappable, ax=axes, ticks=[0, 1], **kwargs)
+    cbar.ax.set_yticklabels(list(ticklabels), fontsize=FONT)
+    cbar.set_label(label, fontsize=FONT)
+    return cbar
+
+
+def normalised_coords(md):
+    xy = md.obsm["coords"].copy()
+    xy = xy - xy.min()
+    xy = xy / xy.max().max()
+    return np.asarray(xy)
+
+
+def draw_pies(ax, topics_df, xy, palette, radius, xrange=(0, 1), yrange=(0, 1)):
+    mask = (
+        (xy[:, 0] >= xrange[0])
+        & (xy[:, 0] <= xrange[1])
+        & (xy[:, 1] >= yrange[0])
+        & (xy[:, 1] <= yrange[1])
+    )
+    props = topics_df.values[mask]
+    pts = xy[mask]
+    cumsum = np.cumsum(props, axis=1) * 360
+    starts = np.hstack([np.zeros((len(props), 1)), cumsum[:, :-1]])
+    for k, topic in enumerate(topics_df.columns):
+        patches = [
+            Wedge(tuple(pts[i]), radius, 90 - cumsum[i, k], 90 - starts[i, k])
+            for i in range(len(props))
+        ]
+        ax.add_collection(
+            PatchCollection(
+                patches, facecolor=palette[topic], edgecolor="none", rasterized=True
+            )
+        )
+    ax.set(
+        aspect="equal",
+        xlim=[xrange[0] - 0.01, xrange[1] + 0.01],
+        ylim=[yrange[0] - 0.01, yrange[1] + 0.01],
+    )
+
+
+def pie_with_zoom(
+    md, palette, radius, xrange, yrange, title=None, legend_ax=None, frame=True
+):
+    topics_df = md.obsm["topics"]
+    xy = normalised_coords(md)
+
+    fig = plt.figure(figsize=(11, 6.5 if legend_ax else 5))
+    gs = gridspec.GridSpec(
+        2 if legend_ax else 1,
+        2,
+        figure=fig,
+        height_ratios=[1, 0.42] if legend_ax else [1],
+        wspace=0.25,
+        hspace=0.05,
+    )
+    ax_full = fig.add_subplot(gs[0, 0])
+    ax_zoom = fig.add_subplot(gs[0, 1])
+
+    draw_pies(ax_full, topics_df, xy, palette, radius)
+    ax_full.axis("off")
+    if title:
+        ax_full.set_title(title, fontsize=TITLE_FONT)
+
+    draw_pies(ax_zoom, topics_df, xy, palette, radius, xrange, yrange)
+    if not frame:
+        ax_zoom.axis("off")
+        if legend_ax:
+            legend_ax(fig.add_subplot(gs[1, :]))
+        return fig
+
+    ax_zoom.set_xticks([])
+    ax_zoom.set_yticks([])
+    for sp in ax_zoom.spines.values():
+        sp.set_linewidth(1.2)
+
+    ax_full.add_patch(
+        Rectangle(
+            (xrange[0], yrange[0]),
+            xrange[1] - xrange[0],
+            yrange[1] - yrange[0],
+            fill=False,
+            lw=1.2,
+            zorder=5,
+        )
+    )
+    start = (xrange[1], (yrange[0] + yrange[1]) / 2)
+    fig.add_artist(
+        ConnectionPatch(
+            xyA=start,
+            coordsA=ax_full.transData,
+            xyB=(0, 0.5),
+            coordsB=ax_zoom.transAxes,
+            lw=1.2,
+            color="black",
+        )
+    )
+    ax_full.plot(*start, "o", color="black", ms=4, zorder=6)
+    ax_zoom.plot(0, 0.5, "o", color="black", ms=4, transform=ax_zoom.transAxes, clip_on=False)
+
+    if legend_ax:
+        legend_ax(fig.add_subplot(gs[1, :]))
+    return fig
+
 
 # ═══════════════════════════════════════════════════════════════════════════
 # Figure 2a
 # ═══════════════════════════════════════════════════════════════════════════
+GROUP_ORDER_2a = [
+    "Light zone",
+    "Dark zone",
+    "Mantle zone",
+    "Plasma cells",
+    "T cell zone",
+    "Myeloid",
+    "MRC",
+    "Epithelial apical",
+    "Epithelial transitional",
+    "Epithelial basal",
+]
 
-mtopic.pl.scatter_pie(
-    mdata,
-    x="coords",
-    radius=0.0074,
-    palette=TOPIC_COLOR,
-    annotation=TOPIC_CELLTYPE,
-    figsize=(8, 4),
-    legend_ncol=2,
-    legend=True,
-    save=f"{OUT}/Figure_2a_1.png",
-)
+groups_2a = defaultdict(list)
+for topic, celltype in TOPIC_CELLTYPE.items():
+    if celltype == "Unknown" or topic not in TOPIC_COLOR:
+        continue
+    name = pretty(celltype)
+    m = re.match(r"^(.*?)(?: (\d+))?$", name)
+    groups_2a[m.group(1)].append((int(m.group(2) or 0), TOPIC_COLOR[topic]))
 
-mtopic.pl.scatter_pie(
+legend_rows = []
+for base in sorted(
+    groups_2a,
+    key=lambda b: GROUP_ORDER_2a.index(b) if b in GROUP_ORDER_2a else len(GROUP_ORDER_2a),
+):
+    members = sorted(groups_2a[base])
+    nums = [n for n, _ in members if n]
+    label = f"{base} {min(nums)}–{max(nums)}" if len(nums) > 1 else base
+    legend_rows.append((label, [c for _, c in members]))
+
+
+def topic_legend(ax):
+    ax.set_xlim(0, 1)
+    ax.set_ylim(0, 1)
+    ax.axis("off")
+    ax.text(0.5, 0.88, "Topics", ha="center", va="center", fontsize=FONT, weight="bold")
+    n_col = int(np.ceil(len(legend_rows) / 2))
+    dy = 0.6 / max(n_col - 1, 1)
+    for j, (label, colors) in enumerate(legend_rows):
+        col, row = divmod(j, n_col)
+        tx = 0.33 + 0.3 * col
+        ty = 0.72 - row * dy
+        ax.text(tx, ty, label, ha="left", va="center", fontsize=FONT)
+        for k, c in enumerate(reversed(colors)):
+            ax.scatter(tx - 0.012 - k * 0.014, ty, s=45, color=c, linewidths=0)
+
+
+fig = pie_with_zoom(
     mdata,
-    x="coords",
+    TOPIC_COLOR,
     radius=0.0074,
     xrange=[0.37, 0.52],
     yrange=[0.45, 0.63],
-    palette=TOPIC_COLOR,
-    annotation=TOPIC_CELLTYPE,
-    legend=True,
-    figsize=(8, 4),
-    legend_ncol=2,
-    save=f"{OUT}/Figure_2a_2.png",
+    legend_ax=topic_legend,
+    frame=False,
 )
+fig.savefig(f"{OUT}/Figure_2a.png", bbox_inches="tight", dpi=300)
+plt.close(fig)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -73,122 +248,40 @@ ZONE_ORDER = [
     "Light zone",
     "Dark zone",
     "Mantle zone",
-    "T cell zone",
-    "Epithelial",
-    "Myeloid",
     "Plasma cells",
+    "T cell zone",
+    "Myeloid",
     "MRC",
+    "Epithelial",
 ]
+ZONE_TITLES = {"Epithelial": "Epithelial cells"}
 
 topics_df = mdata.obsm["topics"]
 coords = np.array(mdata.obsm["coords"])
 
 base_to_topics = defaultdict(list)
+tcell_to_topics = defaultdict(list)
 for topic, celltype in TOPIC_CELLTYPE.items():
-    if celltype == "Unknown":
+    if celltype == "Unknown" or topic not in topics_df.columns:
         continue
     base = next((z for z in ZONE_ORDER if celltype.startswith(z)), celltype)
     base_to_topics[base].append(topic)
+    if base == "T cell zone":
+        tcell_to_topics[celltype].append(topic)
 
-summed = {}
-for base, topic_list in base_to_topics.items():
-    valid = [t for t in topic_list if t in topics_df.columns]
-    summed[base] = topics_df[valid].sum(axis=1).values
-
-ordered_items = sorted(
-    summed.items(),
-    key=lambda x: ZONE_ORDER.index(x[0]) if x[0] in ZONE_ORDER else len(ZONE_ORDER),
-)
-
-bg_kwargs = dict(s=2, c="lightgrey", linewidths=0, rasterized=True)
-
-n_a = len(ordered_items)
-fig, axes = plt.subplots(1, n_a, figsize=(3 * n_a, 3.2), constrained_layout=True)
-axes = np.atleast_1d(axes)
-for ax, (base, weights) in zip(axes, ordered_items):
-    ax.scatter(coords[:, 0], coords[:, 1], **bg_kwargs, zorder=1)
-    sc_a = ax.scatter(
-        coords[:, 0],
-        coords[:, 1],
-        c=weights,
-        s=12,
-        marker="h",
-        cmap=CMAP,
-        linewidths=0,
-        rasterized=True,
-        zorder=2,
-        vmin=0,
-        vmax=1,
-    )
-    ax.set_title(base, fontsize=8, pad=4)
-    ax.axis("off")
-    ax.set_aspect("equal")
-cbar = fig.colorbar(sc_a, ax=axes, shrink=0.7, fraction=0.02, pad=0.01)
-cbar.set_label("Topic weight", fontsize=8)
-cbar.ax.tick_params(labelsize=7)
-plt.savefig(f"{OUT}/Figure_2b_1.png", bbox_inches="tight", dpi=300)
-plt.close()
-
-individual_celltypes = ["T cell zone"]
-only_celltypes = ["T cell zone-1", "T cell zone-2", "T cell zone-3", "T cell zone-4"]
-
-base_to_topics_b = defaultdict(list)
-for topic, celltype in TOPIC_CELLTYPE.items():
-    if celltype == "Unknown":
-        continue
-    base = next((z for z in ZONE_ORDER if celltype.startswith(z)), celltype)
-    if base in individual_celltypes:
-        base_to_topics_b[celltype].append(topic)
-    else:
-        base_to_topics_b[base].append(topic)
-
-summed_b = {}
-for base, topic_list in base_to_topics_b.items():
-    valid = [t for t in topic_list if t in topics_df.columns]
-    summed_b[base] = topics_df[valid].sum(axis=1).values
-summed_b = {k: v for k, v in summed_b.items() if k in only_celltypes}
-
-ordered_items_b = sorted(
-    summed_b.items(),
-    key=lambda x: (
-        (
-            ZONE_ORDER.index(next((z for z in ZONE_ORDER if x[0].startswith(z)), x[0]))
-            if any(x[0].startswith(z) for z in ZONE_ORDER)
-            else len(ZONE_ORDER)
-        ),
-        int(re.search(r"-(\d+)$", x[0]).group(1)) if re.search(r"-(\d+)$", x[0]) else 0,
-    ),
-)
-
-n_b = len(ordered_items_b)
-fig, axes = plt.subplots(1, n_b, figsize=(3 * n_b, 3.2), constrained_layout=True)
-axes = np.atleast_1d(axes)
-for ax, (base, weights) in zip(axes, ordered_items_b):
-    ax.scatter(coords[:, 0], coords[:, 1], **bg_kwargs, zorder=1)
-    sc_b = ax.scatter(
-        coords[:, 0],
-        coords[:, 1],
-        c=weights,
-        s=12,
-        marker="h",
-        cmap=CMAP,
-        linewidths=0,
-        rasterized=True,
-        zorder=2,
-        vmin=0,
-        vmax=1,
-    )
-    ax.set_title(base, fontsize=8, pad=4)
-    ax.axis("off")
-    ax.set_aspect("equal")
-cbar = fig.colorbar(sc_b, ax=axes, shrink=0.7, fraction=0.02, pad=0.01)
-cbar.set_label("Topic weight", fontsize=8)
-cbar.ax.tick_params(labelsize=7)
-plt.savefig(f"{OUT}/Figure_2b_2.png", bbox_inches="tight", dpi=300)
-plt.close()
+zones = [
+    (ZONE_TITLES.get(z, z), topics_df[base_to_topics[z]].sum(axis=1).values)
+    for z in ZONE_ORDER
+    if z in base_to_topics
+]
+tcell_order = ["T cell zone-1", "T cell zone-2", "T cell zone-3", "T cell zone-4"]
+tcells = [
+    (pretty(ct), topics_df[tcell_to_topics[ct]].sum(axis=1).values)
+    for ct in tcell_order
+    if ct in tcell_to_topics
+]
 
 prot_adata = mdata.mod["prot"]
-
 protein_cmap = mcolors.LinearSegmentedColormap.from_list(
     "protein_level",
     [
@@ -199,46 +292,67 @@ protein_cmap = mcolors.LinearSegmentedColormap.from_list(
         (1.0, "#000000"),
     ],
 )
-
 proteins_to_plot = ["prot:CD8A", "prot:PTPRC-1", "prot:CCR7", "prot:VIM"]
-labels = ["CD8A", "CD45RO", "CCR7", "VIM"]
+protein_labels = ["CD8A", "CD45RO", "CCR7", "VIM"]
 
-raw = prot_adata.layers["counts"].toarray().astype(float)
+raw = prot_adata.layers["counts"]
+raw = (raw.toarray() if issparse(raw) else np.asarray(raw)).astype(float)
 gm = gmean(raw + 1, axis=1, keepdims=True)
 clr = np.log((raw + 1) / gm)
 
-n_c = len(proteins_to_plot)
-fig, axes = plt.subplots(1, n_c, figsize=(3 * n_c, 3.2), constrained_layout=True)
-axes = np.atleast_1d(axes)
-for ax, protein, label in zip(axes, proteins_to_plot, labels):
-    feat_idx = list(prot_adata.var_names).index(protein)
-    expr = clr[:, feat_idx]
-    vmin_val = expr.min()
-    vmax_val = expr.max() if expr.max() > vmin_val else vmin_val + 1
-    expr_n = (expr - vmin_val) / (vmax_val - vmin_val)
+proteins = []
+for protein, label in zip(proteins_to_plot, protein_labels):
+    expr = clr[:, list(prot_adata.var_names).index(protein)]
+    lo, hi = expr.min(), expr.max()
+    proteins.append((label, (expr - lo) / (hi - lo if hi > lo else 1)))
 
-    ax.scatter(coords[:, 0], coords[:, 1], **bg_kwargs, zorder=1)
-    sc_c = ax.scatter(
-        coords[:, 0],
-        coords[:, 1],
-        c=expr_n,
-        s=12,
-        marker="h",
-        cmap=protein_cmap,
-        linewidths=0,
-        rasterized=True,
-        zorder=2,
-        vmin=0,
-        vmax=1,
+PANEL_W, GAP_X, TITLE_H, BLOCK_GAP = 2.6, 0.15, 0.3, 0.25
+CB_W, CB_GAP, MARGIN = 0.12, 0.2, 0.1
+span = np.ptp(coords, axis=0)
+panel_h = PANEL_W * span[1] / span[0]
+row_h = panel_h + TITLE_H
+blocks = [
+    (zones, CMAP, "Cumulative\ntopic-spot distribution", ("0", "1")),
+    (tcells, CMAP, "Topic-spot distribution", ("0", "1")),
+    (proteins, protein_cmap, "Protein level", ("0", "Max")),
+]
+n_rows_b = [int(np.ceil(len(items) / 4)) for items, *_ in blocks]
+fig_w = MARGIN + 4 * PANEL_W + 3 * GAP_X + CB_GAP + CB_W + 1.0
+fig_h = MARGIN * 2 + sum(n_rows_b) * row_h + BLOCK_GAP * (len(blocks) - 1)
+fig = plt.figure(figsize=(fig_w, fig_h))
+
+
+def add_axes_in(left, bottom, width, height):
+    return fig.add_axes([left / fig_w, bottom / fig_h, width / fig_w, height / fig_h])
+
+
+top = fig_h - MARGIN
+for (items, cmap, label, ticklabels), nr in zip(blocks, n_rows_b):
+    block_top = top
+    for j, (title, v) in enumerate(items):
+        r, c = divmod(j, 4)
+        ax = add_axes_in(
+            MARGIN + c * (PANEL_W + GAP_X),
+            top - (r + 1) * row_h,
+            PANEL_W,
+            panel_h,
+        )
+        mappable = spot_map(ax, coords, v, cmap, 0, 1, title)
+    block_h = nr * row_h
+    cb_h = min(0.6 * block_h, 2.0)
+    cax = add_axes_in(
+        MARGIN + 4 * PANEL_W + 3 * GAP_X + CB_GAP,
+        block_top - block_h / 2 - cb_h / 2 - TITLE_H / 2,
+        CB_W,
+        cb_h,
     )
-    ax.set_title(label, fontsize=12, pad=4)
-    ax.axis("off")
-    ax.set_aspect("equal")
-cbar = fig.colorbar(sc_c, ax=axes, shrink=0.7, fraction=0.02, pad=0.01)
-cbar.set_label("CLR (min–max scaled)", fontsize=8)
-cbar.ax.tick_params(labelsize=7)
-plt.savefig(f"{OUT}/Figure_2b_3.png", bbox_inches="tight", dpi=300)
-plt.close()
+    cbar = fig.colorbar(mappable, cax=cax, ticks=[0, 1])
+    cbar.ax.set_yticklabels(list(ticklabels), fontsize=FONT)
+    cbar.set_label(label, fontsize=FONT)
+    top -= block_h + BLOCK_GAP
+
+fig.savefig(f"{OUT}/Figure_2b.png", bbox_inches="tight", dpi=300)
+plt.close(fig)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -258,6 +372,7 @@ ZONE_ORDER_2c = [
     "Epithelial transitional",
     "Epithelial basal",
 ]
+GROUP_LABELS_2c = {"Epithelial transitional": "Epithelial trans."}
 
 
 def topic_sort_key(t):
@@ -270,21 +385,20 @@ def topic_sort_key(t):
     return (len(ZONE_ORDER_2c), 0)
 
 
+def zone_of(ann):
+    return next((z for z in ZONE_ORDER_2c if ann.startswith(z)), ann)
+
+
 topic_order = sorted(mdata.obsm["topics"].columns, key=topic_sort_key)
 topic_order = [t for t in topic_order if TOPIC_CELLTYPE.get(t) != "Unknown"]
 
 gamma = mdata.obsm["topics"][topic_order]
-topic_annotation = TOPIC_CELLTYPE
-celltype_color = CELLTYPE_COLOR
-figsize = (18, 8)
-
 dominant_topic = gamma.idxmax(axis=1)
-dominant_celltype = dominant_topic.map(topic_annotation)
+dominant_celltype = dominant_topic.map(TOPIC_CELLTYPE)
 dominant_proportion = gamma.max(axis=1)
 
 celltype_order = {
-    ann: i
-    for i, ann in enumerate(dict.fromkeys(topic_annotation[t] for t in topic_order))
+    ann: i for i, ann in enumerate(dict.fromkeys(TOPIC_CELLTYPE[t] for t in topic_order))
 }
 cell_order = (
     pd.DataFrame(
@@ -307,25 +421,22 @@ K = gamma_sorted.shape[0]
 
 sorted_celltypes = dominant_celltype.loc[cell_order].values
 color_bar = np.array(
-    [
-        plt.matplotlib.colors.to_rgb(celltype_color.get(ct, "#bebebe"))
-        for ct in sorted_celltypes
-    ]
+    [mcolors.to_rgb(CELLTYPE_COLOR.get(ct, "#bebebe")) for ct in sorted_celltypes]
 )
 
-fig = plt.figure(figsize=figsize)
+fig = plt.figure(figsize=(12, 4))
 gs = gridspec.GridSpec(
     2,
     2,
     figure=fig,
-    height_ratios=[0.03, 1],
-    width_ratios=[1, 0.02],
-    hspace=0.01,
-    wspace=0.02,
+    height_ratios=[0.04, 1],
+    width_ratios=[1, 0.015],
+    hspace=0.02,
+    wspace=0.03,
 )
 ax_bar = fig.add_subplot(gs[0, 0])
 ax_heat = fig.add_subplot(gs[1, 0])
-ax_cbar = fig.add_subplot(gs[:, 1])
+ax_cbar = fig.add_subplot(gs[1, 1])
 
 ax_bar.imshow(
     color_bar[np.newaxis, :, :],
@@ -335,6 +446,21 @@ ax_bar.imshow(
 )
 ax_bar.set_xlim(0, N)
 ax_bar.axis("off")
+
+zones_sorted = np.array([zone_of(ct) for ct in sorted_celltypes])
+change = np.flatnonzero(np.r_[True, zones_sorted[1:] != zones_sorted[:-1], True])
+for s, e in zip(change[:-1], change[1:]):
+    z = zones_sorted[s]
+    ax_bar.text(
+        (s + e) / 2,
+        1.3,
+        GROUP_LABELS_2c.get(z, z),
+        rotation=45,
+        ha="left",
+        va="bottom",
+        fontsize=FONT,
+        transform=ax_bar.get_xaxis_transform(),
+    )
 
 im = ax_heat.imshow(
     gamma_sorted.values,
@@ -346,30 +472,16 @@ im = ax_heat.imshow(
     extent=[0, N, K, 0],
 )
 ax_heat.set_xlim(0, N)
-ax_heat.set_yticks(np.arange(K) + 0.5)
-ax_heat.set_yticklabels(
-    [topic_annotation.get(t, t) for t in topic_order],
-    fontsize=7,
-)
 ax_heat.set_xticks([])
+ax_heat.set_yticks([])
+ax_heat.set_xlabel("Spots", fontsize=FONT)
+ax_heat.set_ylabel("Topics", fontsize=FONT)
 
-fig.colorbar(im, cax=ax_cbar)
-ax_cbar.set_ylabel("Topic-spot distribution")
-ax_cbar.yaxis.set_label_position("right")
-ax_cbar.yaxis.tick_right()
+cbar = fig.colorbar(im, cax=ax_cbar, ticks=[0, 1])
+cbar.ax.tick_params(labelsize=FONT)
+cbar.set_label("Topic-spot distribution", fontsize=FONT)
 
-handles = [
-    mpatches.Patch(color=color, label=ct) for ct, color in celltype_color.items()
-]
-fig.legend(
-    handles=handles,
-    loc="lower center",
-    ncol=min(6, len(celltype_color)),
-    fontsize=7,
-    frameon=False,
-    bbox_to_anchor=(0.5, -0.02),
-)
-plt.savefig(f"{OUT}/Figure_2c.png", bbox_inches="tight", dpi=300)
+fig.savefig(f"{OUT}/Figure_2c.png", bbox_inches="tight", dpi=300)
 plt.close(fig)
 
 
@@ -394,49 +506,31 @@ only_celltypes = [
 
 celltype_to_topics = defaultdict(list)
 for topic, celltype in TOPIC_CELLTYPE.items():
-    if celltype in only_celltypes:
+    if celltype in only_celltypes and topic in topics_df.columns:
         celltype_to_topics[celltype].append(topic)
 
-summed = {}
-for celltype, topic_list in celltype_to_topics.items():
-    valid = [t for t in topic_list if t in topics_df.columns]
-    if valid:
-        summed[celltype] = topics_df[valid].sum(axis=1).values
-
-ordered_items = [(ct, summed[ct]) for ct in only_celltypes if ct in summed]
-
-bg_kwargs = dict(s=2, c="lightgrey", linewidths=0, rasterized=True)
+ordered_items = [
+    (pretty(ct), topics_df[celltype_to_topics[ct]].sum(axis=1).values)
+    for ct in only_celltypes
+    if ct in celltype_to_topics
+]
 
 n = len(ordered_items)
 ncols = 3
 nrows = int(np.ceil(n / ncols))
-fig, axes = plt.subplots(nrows, ncols, figsize=(3 * ncols, 3.2 * nrows), constrained_layout=True)
+fig, axes = plt.subplots(
+    nrows, ncols, figsize=(3 * ncols, 3.2 * nrows), constrained_layout=True
+)
 axes_flat = np.atleast_1d(axes).flatten()
-for ax, (celltype, weights) in zip(axes_flat, ordered_items):
-    ax.scatter(coords[:, 0], coords[:, 1], **bg_kwargs, zorder=1)
-    sc_d = ax.scatter(
-        coords[:, 0],
-        coords[:, 1],
-        c=weights,
-        s=12,
-        marker="h",
-        cmap=CMAP,
-        linewidths=0,
-        rasterized=True,
-        zorder=2,
-        vmin=0,
-        vmax=1,
-    )
-    ax.set_title(celltype, fontsize=10, pad=4)
-    ax.axis("off")
-    ax.set_aspect("equal")
+for ax, (title, weights) in zip(axes_flat, ordered_items):
+    sc_d = spot_map(ax, coords, weights, CMAP, 0, 1, title)
 for ax in axes_flat[n:]:
     ax.axis("off")
-cbar = fig.colorbar(sc_d, ax=axes_flat.tolist(), shrink=0.6, fraction=0.02, pad=0.01)
-cbar.set_label("Topic weight", fontsize=9)
-cbar.ax.tick_params(labelsize=8)
-plt.savefig(f"{OUT}/Figure_2d.png", bbox_inches="tight", dpi=300)
-plt.close()
+unit_colorbar(
+    fig, sc_d, axes_flat.tolist(), "Topic-spot distribution", shrink=0.5, pad=0.02
+)
+fig.savefig(f"{OUT}/Figure_2d.png", bbox_inches="tight", dpi=300)
+plt.close(fig)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -464,7 +558,6 @@ rna.X = rna.layers["counts"].copy()
 sc.pp.normalize_total(rna, target_sum=1e4)
 sc.pp.log1p(rna)
 
-bg_kwargs = dict(s=2, c="lightgrey", linewidths=0, rasterized=True)
 strip_prefix = any(v.startswith("rna:") for v in rna.var_names)
 
 panels = []
@@ -480,33 +573,21 @@ for g in GENES:
 n = len(panels)
 ncols = 3
 nrows = int(np.ceil(n / ncols))
-fig, axes = plt.subplots(nrows, ncols, figsize=(3.8 * ncols, 3.2 * nrows), constrained_layout=True)
+fig, axes = plt.subplots(
+    nrows, ncols, figsize=(3.8 * ncols, 3.2 * nrows), constrained_layout=True
+)
 axes_flat = np.atleast_1d(axes).flatten()
 for ax, (g, vals) in zip(axes_flat, panels):
-    ax.scatter(coords[:, 0], coords[:, 1], **bg_kwargs, zorder=1)
-    sc_plot = ax.scatter(
-        coords[:, 0],
-        coords[:, 1],
-        c=vals,
-        s=12,
-        marker="h",
-        cmap=CMAP_2e,
-        linewidths=0,
-        rasterized=True,
-        zorder=2,
-        vmin=0,
-        vmax=np.quantile(vals, 0.99),
+    sc_plot = spot_map(
+        ax, coords, vals, CMAP_2e, 0, np.quantile(vals, 0.99), g, italic=True
     )
-    ax.set_title(g, fontsize=12)
-    ax.axis("off")
-    ax.set_aspect("equal")
     cbar = fig.colorbar(sc_plot, ax=ax, fraction=0.04, pad=0.02, shrink=0.6)
     cbar.outline.set_visible(False)
-    cbar.ax.tick_params(labelsize=7)
+    cbar.ax.tick_params(labelsize=FONT - 1)
 for ax in axes_flat[n:]:
     ax.axis("off")
-plt.savefig(f"{OUT}/Figure_2e.png", bbox_inches="tight", dpi=300)
-plt.close()
+fig.savefig(f"{OUT}/Figure_2e.png", bbox_inches="tight", dpi=300)
+plt.close(fig)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -533,7 +614,7 @@ CELL_TYPE_ORDER = [
 ]
 FEATURE_GROUPS = [
     (
-        "epithelial apical",
+        "Epithelial apical",
         [
             "rna:KRT6B",
             "rna:CRYAB",
@@ -548,7 +629,7 @@ FEATURE_GROUPS = [
         ],
     ),
     (
-        "epithelial transitional",
+        "Epithelial transitional",
         [
             "rna:DSC2",
             "rna:CLDN10",
@@ -564,7 +645,7 @@ FEATURE_GROUPS = [
         ],
     ),
     (
-        "epithelial basal",
+        "Epithelial basal",
         [
             "rna:CLEC5A",
             "rna:KRT15",
@@ -574,7 +655,7 @@ FEATURE_GROUPS = [
         ],
     ),
     (
-        "myeloid epi",
+        "Myeloid\nepithelial region",
         [
             "rna:CXCL8",
             "rna:IL1B",
@@ -589,7 +670,7 @@ FEATURE_GROUPS = [
         ],
     ),
     (
-        "myeloid stroma",
+        "Myeloid\nstromal region",
         [
             "rna:CXCL14",
             "rna:PTGDS",
@@ -640,9 +721,7 @@ sd = mat_t.std(axis=0, ddof=1).replace(0, np.nan)
 mat_scaled = (mat_t - mu_) / sd
 
 n_rows, n_cols = mat_scaled.shape
-fig_w = max(12.0, 0.32 * n_cols + 5.0)
-fig_h = 0.45 * n_rows + 2.0
-fig, ax = plt.subplots(figsize=(fig_w, fig_h))
+fig, ax = plt.subplots(figsize=(0.32 * n_cols + 3.5, 0.24 * n_rows + 1.4))
 
 im = ax.imshow(
     mat_scaled.values,
@@ -654,12 +733,16 @@ im = ax.imshow(
 )
 
 ax.set_yticks(np.arange(n_rows))
-ax.set_yticklabels(mat_scaled.index, fontsize=9)
+ax.set_yticklabels([pretty(c) for c in mat_scaled.index], fontsize=FONT)
 ax.yaxis.tick_right()
-ax.yaxis.set_label_position("right")
 
 ax.set_xticks(np.arange(n_cols))
-ax.set_xticklabels([f"rna:{g}" for g in mat_scaled.columns], rotation=90, fontsize=8)
+ax.set_xticklabels(
+    [g.replace("rna:", "") for g in mat_scaled.columns],
+    rotation=90,
+    fontsize=FONT,
+    fontstyle="italic",
+)
 
 boundary = 0
 for L in group_lengths[:-1]:
@@ -675,24 +758,30 @@ for c, lab, L in zip(centers, group_labels, group_lengths):
         continue
     ax.text(
         c,
-        -0.32,
+        1.02,
         lab,
         transform=trans,
         ha="center",
-        va="top",
-        fontsize=10,
+        va="bottom",
+        fontsize=FONT,
         clip_on=False,
     )
 
 for spine in ax.spines.values():
     spine.set_linewidth(0.8)
 
-fig.subplots_adjust(right=0.78)
-cax = fig.add_axes([0.90, 0.30, 0.012, 0.45])
-cbar = fig.colorbar(im, cax=cax)
-cbar.set_label("Relative RNA score", fontsize=9)
+fig.canvas.draw()
+inv = fig.transFigure.inverted()
+labels_right = inv.transform((ax.yaxis.get_tightbbox().x1, 0))[0]
+ax_pos = ax.get_position()
+cax = fig.add_axes(
+    [labels_right + 0.03, ax_pos.y0 + 0.2 * ax_pos.height, 0.012, 0.6 * ax_pos.height]
+)
+cbar = fig.colorbar(im, cax=cax, ticks=[-2, 0, 2])
+cbar.ax.tick_params(labelsize=FONT)
+cbar.set_label("Relative RNA score", fontsize=FONT)
 
-fig.savefig(f"{OUT}/Figure_2f.png", bbox_inches="tight")
+fig.savefig(f"{OUT}/Figure_2f.png", bbox_inches="tight", dpi=300)
 plt.close(fig)
 
 
@@ -712,31 +801,16 @@ palette = {
     for topic in TOPIC_COLOR
 }
 
-mtopic.pl.scatter_pie(
+fig = pie_with_zoom(
     mdata,
-    x="coords",
-    radius=0.0074,
-    palette=palette,
-    annotation=TOPIC_CELLTYPE,
-    figsize=(8, 4),
-    legend_ncol=2,
-    legend=True,
-    save=f"{OUT}/Figure_2g_1.png",
-)
-
-mtopic.pl.scatter_pie(
-    mdata,
-    x="coords",
+    palette,
     radius=0.0074,
     xrange=[0.4, 0.7],
     yrange=[0.29, 0.6],
-    palette=palette,
-    annotation=TOPIC_CELLTYPE,
-    legend=True,
-    figsize=(8, 4),
-    legend_ncol=2,
-    save=f"{OUT}/Figure_2g_2.png",
+    title="Epithelial region",
 )
+fig.savefig(f"{OUT}/Figure_2g.png", bbox_inches="tight", dpi=300)
+plt.close(fig)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -815,7 +889,9 @@ region = region.div(row_sum, axis=0).fillna(0.0)
 LEGEND_ORDER = CELLTYPE_ORDER_2h
 STACK_ORDER = list(reversed(CELLTYPE_ORDER_2h))
 
-fig, ax = plt.subplots(figsize=(12, 3))
+H_W, H_H = 5.2, 2.6
+fig = plt.figure(figsize=(H_W + 2.6, H_H + 0.7))
+ax = fig.add_axes([0.6 / (H_W + 2.6), 0.45 / (H_H + 0.7), H_W / (H_W + 2.6), H_H / (H_H + 0.7)])
 x = np.arange(len(region))
 bottom = np.zeros(len(region))
 
@@ -828,15 +904,16 @@ for cell_type in STACK_ORDER:
         width=0.9,
         color=COLORS[cell_type],
         edgecolor="none",
-        label=cell_type,
     )
     bottom += vals
 
 ax.set_xlim(-0.5, len(region) - 0.5)
 ax.set_ylim(0.0, 1.0)
 ax.set_xticks([])
-ax.set_xlabel("Epithelial region spots")
-ax.set_ylabel("Topic proportions")
+ax.set_yticks([0, 1])
+ax.tick_params(labelsize=FONT)
+ax.set_xlabel("Epithelial region spots", fontsize=FONT)
+ax.set_ylabel("Topic proportions", fontsize=FONT)
 ax.set_facecolor("white")
 fig.patch.set_facecolor("white")
 for spine in ax.spines.values():
@@ -847,13 +924,11 @@ legend_handles = [
 ]
 ax.legend(
     legend_handles,
-    LEGEND_ORDER,
-    title="Topic",
+    [pretty(c) for c in LEGEND_ORDER],
     loc="center left",
     bbox_to_anchor=(1.01, 0.5),
     frameon=False,
-    fontsize=9,
+    fontsize=FONT,
 )
-fig.tight_layout()
 fig.savefig(f"{OUT}/Figure_2h.png", bbox_inches="tight", dpi=300)
 plt.close(fig)

@@ -1,0 +1,7 @@
+data/*
+!data/.gitkeep
+figures/*
+!figures/.gitkeep
+scripts/Rplots.pdf
+__pycache__/
+.Rhistory

@@ -10,31 +10,57 @@ library(this.path)
 
 setwd(this.dir())
 
-dir.create("../figures/Figure_E10", recursive = T)
+dir.create("../figures/Figure_E10", recursive = T, showWarnings = FALSE)
 
 graph_tbl <- readRDS(file="../data/PBMCs_GRN_RTE.RDS")
-node_colors <- c("darkred","green","blue")
+node_colors <- c("red","green","blue")
 graph_tbl <- graph_tbl %>%
   activate(edges) %>%
   mutate(edge_color = node_colors[from])
 
 graph_tbl <- graph_tbl %>% filter(!(from == to))
 
-cols <- as_tibble(graph_tbl, what = "edges") %>% 
+cols <- as_tibble(graph_tbl, what = "edges") %>%
   pull(edge_color)
+
+tf_idx <- unique(as_tibble(graph_tbl, active = "edges")$from)
+graph_tbl <- graph_tbl %>%
+  activate(nodes) %>%
+  mutate(is_tf       = row_number() %in% tf_idx,
+         fontface    = ifelse(is_tf, "plain", "italic"),
+         label_size  = ifelse(is_tf, 5.5, 4.5 + 1 / .pt),
+         label_fill  = ifelse(is_tf, "#d9d9d9", "transparent"),
+         point_size  = 1,
+         point_alpha = ifelse(is_tf, 1, 0.7),
+         point_color = case_when(
+           is_tf ~ node_colors[row_number()],
+           color %in% colors() | grepl("^#", color) ~ color,
+           TRUE ~ "grey50"
+         ))
 
 set.seed(3)
 gg <- ggraph(graph_tbl,'fr') +
-  geom_edge_bundle_force(edge_colour = rep(cols, each=20), n_cycle = 10, force=4, 
+  geom_edge_bundle_force(edge_colour = rep(cols, each=20), n_cycle = 10, force=4,
                          edge_width = 0.4, n = 20, alpha=0.4)+
   scale_edge_colour_identity() +
-  geom_node_point(size = 1, aes(color = color)) + 
-  scale_color_manual(values = c("blue" = "blue", "red" = "red"))+
-  geom_node_text(aes(label = name), repel = T, size=4) +
-  theme_graph() + 
+  geom_node_point(aes(color = point_color, size = point_size, alpha = point_alpha)) +
+  scale_colour_identity() +
+  scale_alpha_identity() +
+  geom_node_label(aes(label = name, fontface = fontface, size = label_size,
+                      fill = label_fill, point.size = point_size),
+                  repel = T, family = "Arial",
+                  linewidth = 0,
+                  label.r = unit(0.3, "lines"),
+                  label.padding = unit(0.15, "lines"),
+                  box.padding = unit(0.25, "lines"),
+                  min.segment.length = unit(1, "lines"),
+                  max.time = 10, max.iter = 1e6, seed = 3) +
+  scale_size_identity() +
+  scale_fill_identity() +
+  theme_graph(base_family = "Arial") +
   theme(legend.position="none")
 
-png(file = paste0("../figures/Figure_E10/Figure_E10e.png"), width = 300, height=200, units="mm", res =400)
+cairo_pdf(file = "../figures/Figure_E10/Figure_E10e.pdf", width = 300 / 25.4, height = 200 / 25.4)
 gg
 dev.off()
 
@@ -69,4 +95,4 @@ dev.off()
 # [22] tools_4.5.2        memoise_2.0.1      httpuv_1.6.17      vctrs_0.7.2        R6_2.6.1           lifecycle_1.0.5    MASS_7.3-65       
 # [29] pkgconfig_2.0.3    pillar_1.11.1      later_1.4.8        gtable_0.3.6       glue_1.8.0         Rcpp_1.1.1         servr_0.32        
 # [36] ggforce_0.5.0      xfun_0.57          tibble_3.3.1       tidyselect_1.2.1   rstudioapi_0.18.0  farver_2.1.2       labeling_0.4.3    
-# [43] compiler_4.5.2     S7_0.2.1   
+# [43] compiler_4.5.2     S7_0.2.1

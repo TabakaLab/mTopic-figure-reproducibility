@@ -22,6 +22,11 @@ data[["peaks"]]@fragments[[1]]@path <- "../data/GSM5065524_LLL_CTRL_fragments.ts
 d <- subset(data, cell_type %in% setdiff(names(table(data@meta.data$cell_type)),
   c("NA doublets-1", "NA doublets-2", "NA doublets-3")))
 
+x  <- GetAssayData(d, assay = "rna", layer = "data")[, 1]
+cn <- GetAssayData(d, assay = "rna", layer = "counts")[, 1]
+message("rna 'data' layer is log(TP10K + 1): ",
+        isTRUE(all.equal(as.numeric(x), as.numeric(log1p(cn / sum(cn) * 1e4)))))
+
 Topic <- 15
 TOI <- c(15, 20, 7, 28)
 Gene <- "PRF1"
@@ -205,4 +210,4 @@ dev.off()
 # [91] tibble_3.3.1           cli_3.6.6              uwot_0.2.4             xtable_1.8-8           reticulate_1.46.0      Rcpp_1.1.1            
 # [97] GenomeInfoDb_1.46.2    globals_0.19.1         spatstat.random_3.4-5  png_0.1-9              spatstat.univar_3.1-7  parallel_4.5.2        
 # [103] dotCall64_1.2          bitops_1.0-9           listenv_0.10.1         ggridges_0.5.7         purrr_1.2.1            crayon_1.5.3          
-# [109] rlang_1.2.0            fastmatch_1.1-8        cowplot_1.2.0    
+# [109] rlang_1.2.0            fastmatch_1.1-8        cowplot_1.2.0

@@ -966,5 +966,5 @@ fig.legend(
 
 fig.tight_layout()
 
-fig.savefig(f"{OUT}/Figure_E7f.png", dpi=300, bbox_inches="tight")
+fig.savefig(f"{OUT}/Figure_E7f.pdf", dpi=300, bbox_inches="tight")
 plt.close(fig)

@@ -32,43 +32,58 @@ OUT = "../figures/Figure_E5"
 os.makedirs(OUT, exist_ok=True)
 
 
-def plot_selected_topics(sample, path, topics, save_path):
-    mdata = mtopic.read.h5mu(path)
-    topics_df = mdata.obsm["topics"]
-    coords = np.array(mdata.obsm["coords"])
+_TOPIC_CACHE = {}
 
-    ncols = len(topics)
-    nrows = 1
-    fig, axes = plt.subplots(
-        nrows, ncols, figsize=(ncols * 1.5, nrows * 1.7), constrained_layout=True
+
+def _topics_and_coords(path):
+    if path not in _TOPIC_CACHE:
+        mdata = mtopic.read.h5mu(path)
+        _TOPIC_CACHE[path] = (mdata.obsm["topics"], np.array(mdata.obsm["coords"]))
+    return _TOPIC_CACHE[path]
+
+
+def plot_selected_topics(groups, save_path, panel_w=1.5, panel_h=1.7, gap=0.25):
+    widths = []
+    for gi, (_, _, topics) in enumerate(groups):
+        if gi:
+            widths.append(gap)
+        widths += [1.0] * len(topics)
+
+    fig = plt.figure(
+        figsize=(sum(widths) * panel_w, panel_h), constrained_layout=True
     )
-    axes = np.atleast_1d(axes).flatten()
+    gs = fig.add_gridspec(1, len(widths), width_ratios=widths)
 
     bg_kwargs = dict(s=1, c="lightgrey", linewidths=0, rasterized=True)
 
-    for ax, topic in zip(axes, topics):
-        col = f"topic_{topic}"
-        ax.scatter(coords[:, 0], coords[:, 1], **bg_kwargs, zorder=1)
-        ax.scatter(
-            coords[:, 0],
-            coords[:, 1],
-            c=topics_df[col].values,
-            s=0.9,
-            marker="s",
-            cmap="gnuplot",
-            linewidths=0,
-            rasterized=True,
-            zorder=2,
-            vmin=0,
-            vmax=1,
-        )
-        ax.axis("off")
-        ax.set_aspect("equal")
-        ax.set_title(f"{sample}\nTopic {topic}", fontsize=12)
+    col_i = 0
+    for gi, (sample, path, topics) in enumerate(groups):
+        if gi:
+            col_i += 1
+        topics_df, coords = _topics_and_coords(path)
+        for topic in topics:
+            ax = fig.add_subplot(gs[0, col_i])
+            col_i += 1
+            ax.scatter(coords[:, 0], coords[:, 1], **bg_kwargs, zorder=1)
+            ax.scatter(
+                coords[:, 0],
+                coords[:, 1],
+                c=topics_df[f"topic_{topic}"].values,
+                s=0.9,
+                marker="s",
+                cmap="gnuplot",
+                linewidths=0,
+                rasterized=True,
+                zorder=2,
+                vmin=0,
+                vmax=1,
+            )
+            ax.axis("off")
+            ax.set_aspect("equal")
+            ax.set_title(f"{sample}\nTopic {topic}", fontsize=12)
 
-    plt.savefig(save_path, bbox_inches="tight", dpi=300)
-    plt.close()
-
+    fig.savefig(save_path, bbox_inches="tight", dpi=300)
+    plt.close(fig)
 
 # ═══════════════════════════════════════════════════════════════════════════
 # Figure E5a
@@ -132,16 +147,11 @@ plt.close(fig)
 # Figure E5c
 # ═══════════════════════════════════════════════════════════════════════════
 plot_selected_topics(
-    "P22ATAC",
-    INPUT_PATHS["P22ATAC"],
-    topics=[10, 37, 12, 45],
-    save_path=f"{OUT}/Figure_E5c_1.png",
-)
-plot_selected_topics(
-    "P22H3K27me3",
-    INPUT_PATHS["P22H3K27me3"],
-    topics=[19, 2, 46, 48, 32, 1, 33, 3],
-    save_path=f"{OUT}/Figure_E5c_2.png",
+    [
+        ("P22ATAC", INPUT_PATHS["P22ATAC"], [10, 37, 12, 45]),
+        ("P22H3K27me3", INPUT_PATHS["P22H3K27me3"], [19, 2, 46, 48, 32, 1, 33, 3]),
+    ],
+    save_path=f"{OUT}/Figure_E5c.png",
 )
 
 
@@ -149,16 +159,11 @@ plot_selected_topics(
 # Figure E5f
 # ═══════════════════════════════════════════════════════════════════════════
 plot_selected_topics(
-    "P22ATAC",
-    INPUT_PATHS["P22ATAC"],
-    topics=[31],
-    save_path=f"{OUT}/Figure_E5f_1.png",
-)
-plot_selected_topics(
-    "P22H3K27me3",
-    INPUT_PATHS["P22H3K27me3"],
-    topics=[14, 45],
-    save_path=f"{OUT}/Figure_E5f_2.png",
+    [
+        ("P22ATAC", INPUT_PATHS["P22ATAC"], [31]),
+        ("P22H3K27me3", INPUT_PATHS["P22H3K27me3"], [14, 45]),
+    ],
+    save_path=f"{OUT}/Figure_E5f.png",
 )
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -240,6 +245,7 @@ PANELS_E5I = [
 MODS_E5I = ["rna", "h3k27me3"]
 MOD_LABEL_E5I = {"rna": "RNA", "h3k27me3": "H3K27me3"}
 MOD_COLOR_E5I = {"rna": "#99000D", "h3k27me3": "#005A32"}
+MOD_MARKER_E5I = {"rna": "o", "h3k27me3": "s"}
 MOD_CMAP_E5I = {
     "rna": LinearSegmentedColormap.from_list(
         "rna_cmap",
@@ -281,6 +287,7 @@ RADIUS_OF = {
 CORR_LIM = 1.0
 PANEL_SIZE = 1.5
 RIGHT_WIDTH = 3.2
+SIM_BOX_ASPECT_E5I = 1.27
 
 cache = np.load(INPUT_PATHS["corr_cache"])
 
@@ -332,7 +339,6 @@ for i, (label, title) in enumerate(PANELS_E5I):
         if j == 0:
             ax.set_ylabel(f"{title}\n{AXIS_NOTE}", fontsize=10)
 
-# shared x label, centred under both columns
 ax_lab = fig.add_subplot(left[n_rows - 1, :], frameon=False)
 ax_lab.set_xticks([])
 ax_lab.set_yticks([])
@@ -353,13 +359,14 @@ for k, mod in enumerate(MODS_E5I):
     cax.yaxis.set_label_position("left")
 
 ax_sim = fig.add_subplot(right[2])
+ax_sim.set_box_aspect(SIM_BOX_ASPECT_E5I)
 for mod in MODS_E5I:
     d = sim[sim["modality"] == mod]
     ax_sim.plot(
         d["radius"],
         d[METRIC_E5I],
-        marker="o",
-        ms=5,
+        marker=MOD_MARKER_E5I[mod],
+        ms=5 if mod == "rna" else 4.4,
         lw=1.4,
         color=MOD_COLOR_E5I[mod],
         label=MOD_LABEL_E5I[mod],
@@ -374,7 +381,17 @@ ax_sim.set_xlim(min(radii) - 0.04, max(radii) + 0.04)
 ax_sim.set_xlabel("Spatial radius (r)", fontsize=10)
 ax_sim.set_ylabel("Matrix correlation", fontsize=10)
 ax_sim.tick_params(labelsize=9)
-ax_sim.legend(fontsize=9, frameon=False, loc="lower left")
+ax_sim.grid(axis="y", alpha=0.25, lw=0.6)
+ax_sim.set_axisbelow(True)
+ax_sim.legend(
+    fontsize=9,
+    frameon=False,
+    loc="lower center",
+    bbox_to_anchor=(0.5, 1.0),
+    ncol=len(MODS_E5I),
+    columnspacing=1.5,
+    borderaxespad=0.3,
+)
 
 fig.savefig(f"{OUT}/Figure_E5i.png", dpi=300, bbox_inches="tight")
 plt.close(fig)
@@ -386,14 +403,23 @@ plt.close(fig)
 MODS_E5J = ["rna", "h3k27me3"]
 MOD_LABEL_E5J = {"rna": "RNA", "h3k27me3": "H3K27me3"}
 MOD_COLOR_E5J = {"rna": "#921F18", "h3k27me3": "#215C37"}
+MOD_MARKER_E5J = {"rna": "o", "h3k27me3": "s"}
+MOD_AREA_E5J = {"rna": 1.0, "h3k27me3": np.pi / 4}
 
 KDE_GRID = 200
 KDE_BW = 0.40
 KDE_LEVELS = 5
 KDE_LOW_CUT = 0.12
 POINT_SIZE_E5J = 16
+POINT_SIZE_TOP_E5J = 30
 JITTER_E5J = 0.12
 FONT_E5J = 13
+
+BOX_EDGE_E5J = "black"
+BOX_LW_E5J = 1.3
+BOX_MEDIAN_LW_E5J = 1.6
+BOX_WHIS_E5J = 1.5
+BOX_WIDTH_E5J = 2.8 * JITTER_E5J
 
 res_j = pd.read_csv(INPUT_PATHS["rbo_per_topic"])
 res_j = res_j[res_j["used"] & res_j["matched"]]
@@ -402,7 +428,7 @@ norm_j = pd.read_csv(INPUT_PATHS["rbo_preserved"])
 xx, yy = np.mgrid[0 : 1 : complex(0, KDE_GRID), 0 : 1 : complex(0, KDE_GRID)]
 grid_j = np.vstack([xx.ravel(), yy.ravel()])
 
-fig = plt.figure(figsize=(4.4, 6.0))
+fig = plt.figure(figsize=(4.4, 6.72))
 outer = fig.add_gridspec(2, 1, height_ratios=[4.0, 1.1], hspace=0.38)
 
 ax = fig.add_subplot(outer[0])
@@ -432,7 +458,8 @@ for mod in MODS_E5J:
     ax.scatter(
         x[ok],
         y[ok],
-        s=POINT_SIZE_E5J,
+        s=POINT_SIZE_TOP_E5J * MOD_AREA_E5J[mod],
+        marker=MOD_MARKER_E5J[mod],
         color=col,
         edgecolors="none",
         zorder=3,
@@ -441,11 +468,11 @@ for mod in MODS_E5J:
         plt.Line2D(
             [],
             [],
-            marker="o",
+            marker=MOD_MARKER_E5J[mod],
             ls="",
             color=col,
             markeredgecolor="none",
-            markersize=14,
+            markersize=14 * np.sqrt(MOD_AREA_E5J[mod]),
             label=MOD_LABEL_E5J[mod],
         )
     )
@@ -453,6 +480,7 @@ for mod in MODS_E5J:
 ax.plot([0, 1], [0, 1], color="0.55", ls="--", lw=1, zorder=1)
 ax.set_xlim(0, 1)
 ax.set_ylim(0, 1)
+ax.set_aspect("equal", adjustable="box")
 ax.xaxis.set_major_formatter(FormatStrFormatter("%g"))
 ax.yaxis.set_major_formatter(FormatStrFormatter("%g"))
 ax.set_xlabel("Cosine similarity (all features)", fontsize=FONT_E5J)
@@ -464,27 +492,50 @@ ax.legend(
     handles=handles,
     frameon=False,
     fontsize=FONT_E5J,
-    loc="upper left",
+    loc="lower center",
+    bbox_to_anchor=(0.5, 1.0),
+    ncol=len(handles),
     handletextpad=0.3,
-    borderaxespad=0.8,
+    columnspacing=1.5,
+    borderaxespad=0.3,
 )
 
 ax_d = fig.add_subplot(outer[1])
 rng_j = np.random.default_rng(0)
 for gi, mod in enumerate(MODS_E5J):
-    v = norm_j[norm_j["modality"] == mod]["difference"].dropna().to_numpy()
+    v = norm_j[norm_j["modality"] == mod]["difference"].dropna().to_numpy(float)
     if not len(v):
         continue
+    print(f"E5j bottom / {MOD_LABEL_E5J[mod]}: n = {len(v)} topics")
     ax_d.scatter(
         v,
         gi + rng_j.uniform(-JITTER_E5J, JITTER_E5J, len(v)),
-        s=POINT_SIZE_E5J ,
+        s=POINT_SIZE_E5J * MOD_AREA_E5J[mod],
+        marker=MOD_MARKER_E5J[mod],
         color=MOD_COLOR_E5J[mod],
         edgecolors="none",
-        zorder=3,
+        zorder=2,
     )
-    ax_d.plot(
-        [np.median(v)] * 2, [gi - 0.3, gi + 0.3], color="black", lw=1.8, zorder=5
+    horiz = (
+        dict(orientation="horizontal")
+        if tuple(int(p) for p in plt.matplotlib.__version__.split(".")[:2])
+        >= (3, 10)
+        else dict(vert=False)
+    )
+    ax_d.boxplot(
+        [v],
+        positions=[gi],
+        **horiz,
+        widths=BOX_WIDTH_E5J,
+        whis=BOX_WHIS_E5J,
+        showfliers=False,
+        patch_artist=True,
+        manage_ticks=False,
+        zorder=5,
+        medianprops=dict(color=BOX_EDGE_E5J, lw=BOX_MEDIAN_LW_E5J),
+        whiskerprops=dict(color=BOX_EDGE_E5J, lw=BOX_LW_E5J),
+        capprops=dict(color=BOX_EDGE_E5J, lw=BOX_LW_E5J),
+        boxprops=dict(facecolor="none", edgecolor=BOX_EDGE_E5J, lw=BOX_LW_E5J),
     )
 
 ax_d.axvline(0, color="0.55", ls="--", lw=1, zorder=1)

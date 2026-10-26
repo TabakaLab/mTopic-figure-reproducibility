@@ -14,13 +14,11 @@ INPUT_PATHS = {
     "P22H3K27ac": "../data/P22MouseBrainH3K27ac_trained.h5mu",
 }
 
-# panels h, i: the benchmark caches, copied over as they are
 SCORE_PATHS = {
     "frame": "../data/benchmark_null_hungarian_5sites_frame.csv",
     "points": "../data/benchmark_null_hungarian_5sites_points.csv",
 }
 
-# panel g: one file per condition, written by prepare_E3g_cache.py
 G_MAP_PATH = "../data/E3g_{mode}_t{topic}_cont{cont}.csv"
 
 OUT = "../figures/Figure_E3"
@@ -87,9 +85,6 @@ DEFAULT_PALETTE = {
 
 MODE_LABEL = {"frame": "Frame spike-in", "points": "Points spike-in"}
 
-# contamination in the cache, label, shade toward white. As in the benchmark
-# script, the shades run lightest-first over ascending contamination, so 100%
-# spike-in (contamination 0) is the light one and 50% the dark one.
 LEVELS = [(0.0, "100%", 0.45), (0.5, "50%", 0.0)]
 
 DATASET_COLOR = {
